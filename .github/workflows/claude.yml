@@ -34,11 +34,31 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: anthropics/claude-code-action@v1
+      # Etiqueta "revision-claude": revisión completa del PR (solo comenta).
+      - name: Revisión del PR
+        if: github.event_name == 'pull_request'
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: ${{ github.event_name == 'pull_request' && format('Revisa el PR #{0} de {1}. Lee el diff con `gh pr diff {0}` y el contexto necesario. Busca, de más a menos grave, errores de lógica, seguridad, permisos, migraciones o datos que se puedan perder y riesgos para producción (este sistema tiene usuarios reales). Deja comentarios en línea solo donde haya un problema concreto (archivo:línea, escenario que lo dispara y corrección), y al final un comentario de resumen en español con `gh pr comment`. No apruebes, no pidas cambios formales y no modifiques código. Si el cambio está bien, dilo en una línea.', github.event.pull_request.number, github.repository) || '' }}
+          prompt: |
+            Revisa el PR #${{ github.event.pull_request.number }} de ${{ github.repository }}.
+            Lee el diff con `gh pr diff ${{ github.event.pull_request.number }}` y el contexto necesario.
+            Busca, de más a menos grave: errores de lógica, seguridad, permisos, migraciones o datos que se
+            puedan perder y riesgos para producción (este sistema tiene usuarios reales).
+            Deja comentarios en línea solo donde haya un problema concreto (archivo:línea, escenario que lo
+            dispara y corrección), y al final un comentario de resumen en español con `gh pr comment`.
+            No apruebes, no pidas cambios formales y no modifiques código. Si el cambio está bien, dilo en una línea.
           claude_args: >-
             --model sonnet
             --max-turns 25
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+
+      # Mención @claude en un comentario: responde a lo que se le pide.
+      - name: Responder a @claude
+        if: github.event_name != 'pull_request'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --model sonnet
+            --max-turns 25
